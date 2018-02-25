@@ -11,6 +11,8 @@ make
 ## Execution instructions:
 ./ZCompiler {optional filename} {--help} {--lex} {--parse}
 
+## History:
+
 ### [assignment-01]
 New features: None
 
