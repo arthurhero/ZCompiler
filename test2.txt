@@ -1,0 +1,9 @@
+1+
+{x=5;
+ y=3;
+ z=(a,b)->{a+b+x};
+ in
+ if (x+y>4)
+ then {g=3;
+        in g+x}
+ else z(4,7)}
