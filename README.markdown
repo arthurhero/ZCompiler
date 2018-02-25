@@ -9,7 +9,7 @@ The first compiler I'm making!
 make
 
 ## Execution instructions:
-./ZCompiler {optional filename}
+./ZCompiler {optional filename} {--help} {--lex} {--parse}
 
 ### [assignment-01]
 New features: None
