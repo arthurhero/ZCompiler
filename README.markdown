@@ -11,6 +11,8 @@ make
 ## Execution instructions:
 ./ZCompiler {optional filename} {--help} {--lex} {--parse}
 
+See **test.txt** and **test2.txt** for syntax example.
+
 ## History:
 
 ### [assignment-01]
