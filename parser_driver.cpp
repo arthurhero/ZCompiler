@@ -5,9 +5,9 @@ parser_driver::parser_driver(const std::string &f, bool lex, bool parse)
 
 parser_driver::~parser_driver() { }
 
-shared_ptr<Exp> parser_driver::parse() {
+shared_ptr<Stms> parser_driver::parse() {
     scan_begin();
-    shared_ptr<Exp> ret;
+    shared_ptr<Stms> ret;
     yy::parser parser (*this, &ret);
     parser.set_debug_level(trace_parsing);
     result = parser.parse();

@@ -6,20 +6,116 @@
 
 using namespace std;
 
-enum Type {Int, Bool, Func, Unknown};
-enum LogOps {Equal, Less, Greater, Leq, Geq, Neq};
+enum Type {Int, Bool, Func, String, Void, Unknown};
+enum LogOps {Equal, Less, Greater, Leq, Geq, Neq, And, Or};
 
 struct Ans {
     int i;
     bool b;
+    std::string s;
     Type t = Unknown;
 };
+
+/***** Declare *******************************************************************/
+
+struct Stm;
+struct Stms;
+struct SAssign;
+struct SPrint;
+struct SFunc;
+struct SIf;
+struct SReturn;
+struct Exp;
+struct EVoid;
+struct EString;
+struct EVar;
+struct ELet;
+struct EFunc;
+struct EApp;
+struct ENumb;
+struct EBool;
+
+/***** Statements *******************************************************************/
+
+struct Stm {
+    virtual Ans exec() = 0;
+    virtual string gettype() = 0;
+    std::vector<shared_ptr<std::map<std::string, shared_ptr<Exp> > > > parent_contexts;
+};
+
+struct Stms {
+    Stms(std::vector< shared_ptr<Stm> > _stms);
+    Ans exec();
+    std::vector<shared_ptr<std::map<std::string, shared_ptr<Exp> > > > parent_contexts;
+    std::map<std::string, shared_ptr<Exp> > context;
+    std::vector< shared_ptr<Stm> > stms;
+};
+
+struct SAssign : public Stm {
+  std::string id;
+  shared_ptr<Exp> exp;
+  SAssign(std::string _id, shared_ptr<Exp> _exp);
+  Ans exec();
+  string gettype();
+};
+
+struct SPrint : public Stm {
+  std::vector< shared_ptr<Exp> > content;
+  SPrint(std::vector< shared_ptr<Exp> > _content);
+  Ans exec();
+  string gettype();
+};
+
+struct SFunc : public Stm {
+  shared_ptr<EApp> app;
+  SFunc(shared_ptr<EApp> _app);
+  Ans exec();
+  string gettype();
+};
+
+struct SIf : public Stm {
+    shared_ptr<EBool> condition;
+    shared_ptr<Stms> first;
+    shared_ptr<Stms> second;
+    shared_ptr<SIf> sec_if;
+    SIf(shared_ptr<EBool> _condition, shared_ptr<Stms> _first);
+    SIf(shared_ptr<EBool> _condition, shared_ptr<Stms> _first, shared_ptr<Stms> _second);
+    SIf(shared_ptr<EBool> _condition, shared_ptr<Stms> _first, shared_ptr<SIf> _sec_if);
+    Ans exec();
+    string gettype();
+};
+
+struct SReturn : public Stm {
+    shared_ptr<Exp> expression;
+    SReturn(shared_ptr<Exp> _expression);
+    Ans exec();
+    string gettype();
+};
+
+
+/***** Expressions *******************************************************************/
 
 struct Exp {
     virtual Ans eval() = 0;
     virtual string gettype() = 0;
+    virtual string tostring() = 0;
     std::map<std::string, shared_ptr<Exp> > context;
     static std::map<std::string, shared_ptr<Exp> > globals;
+};
+
+struct EVoid : public Exp {
+    EVoid();
+    Ans eval();
+    string gettype();
+    string tostring();
+};
+
+struct EString : public Exp {
+    string str;
+    EString(string _str);
+    Ans eval();
+    string gettype();
+    string tostring();
 };
 
 struct EVar : public Exp {
@@ -27,22 +123,26 @@ struct EVar : public Exp {
     EVar(std::string _name);
     Ans eval();
     string gettype();
+    string tostring();
 };
 
 struct ELet : public Exp {
     shared_ptr<Exp> expression;
-    ELet(std::map<std::string, shared_ptr<Exp> > _context, shared_ptr<Exp> _expression);
+    std::vector<std::pair<std::string, shared_ptr<Exp> > > assigns;
+    ELet(std::vector<std::pair<std::string, shared_ptr<Exp> > > _assigns, shared_ptr<Exp> _expression);
     Ans eval();
     string gettype();
+    string tostring();
 };
 
 struct EFunc : public Exp {
     std::vector<std::string> params;
-    shared_ptr<Exp> expression;
-    EFunc(shared_ptr<Exp> _expression);
-    EFunc(std::vector<std::string> _params, shared_ptr<Exp> _expression);
+    shared_ptr<Stms> stms;
+    EFunc(shared_ptr<Stms> _stms);
+    EFunc(std::vector<std::string> _params, shared_ptr<Stms> _stms);
     Ans eval();
     string gettype();
+    string tostring();
 };
 
 struct EApp : public Exp {
@@ -56,49 +156,31 @@ struct EApp : public Exp {
     EApp(std::vector<shared_ptr<Exp> > _args, shared_ptr<EFunc> _function);
     Ans eval();
     string gettype();
+    string tostring();
 };
 
 struct ENumb : public Exp {
-    shared_ptr<ENumb> loperand;
-    shared_ptr<ENumb> roperand;
+    shared_ptr<Exp> loperand;
+    shared_ptr<Exp> roperand;
     char oper;
     int value;
-    shared_ptr<EVar> var;
-    shared_ptr<EApp> app;
-    shared_ptr<ELet> let;
     ENumb(int _value);
-    ENumb(shared_ptr<EVar> _var);
-    ENumb(shared_ptr<EApp> _app);
-    ENumb(shared_ptr<ELet> _let);
-    ENumb(shared_ptr<ENumb> _loperand, char _oper, shared_ptr<ENumb> _roperand);
+    ENumb(shared_ptr<Exp> _loperand, char _oper, shared_ptr<Exp> _roperand);
     Ans eval();
     string gettype();
+    string tostring();
 };
 
 struct EBool : public Exp {
-    shared_ptr<ENumb> loperand;
-    shared_ptr<ENumb> roperand;
-    shared_ptr<EBool> to_negate;
+    shared_ptr<Exp> loperand;
+    shared_ptr<Exp> roperand;
+    shared_ptr<Exp> to_negate;
     LogOps oper;
     bool value;
-    shared_ptr<EVar> var;
-    shared_ptr<EApp> app;
-    shared_ptr<ELet> let;
     EBool(bool _value);
-    EBool(shared_ptr<EVar> _var);
-    EBool(shared_ptr<EApp> _app);
-    EBool(shared_ptr<ELet> _let);
-    EBool(shared_ptr<EBool> _to_negate);
-    EBool(shared_ptr<ENumb> _loperand, LogOps _oper, shared_ptr<ENumb> _roperand);
+    EBool(shared_ptr<Exp> _to_negate);
+    EBool(shared_ptr<Exp> _loperand, LogOps _oper, shared_ptr<Exp> _roperand);
     Ans eval();
     std::string gettype();
-};
-
-struct EIf : public Exp {
-    shared_ptr<EBool> condition;
-    shared_ptr<Exp> first;
-    shared_ptr<Exp> second;
-    EIf(shared_ptr<EBool> _condition, shared_ptr<Exp> _first, shared_ptr<Exp> _second);
-    Ans eval();
-    std::string gettype();
+    string tostring();
 };

@@ -1,9 +1,13 @@
 1+
 {x=5;
- y=3;
+ y=x-2;
  z=(a,b)->{a+b+x};
  in
  if (x+y>4)
- then {g=3;
-        in g+x}
+ then {
+    x=10;
+    x=x+1;
+    g=x-2;
+    h=x+g;
+    in x+g+h}
  else z(4,7)}

@@ -37,6 +37,10 @@ using namespace std;
 %token
   END     0   "eof"
   ENDLINE     "eol"
+  VOID        "void"
+  PRINT       "print"
+  ENDL        "endl"
+  RETURN      "return"
   LCURL       "{"
   RCURL       "}"
   LPAREN      "("
@@ -56,29 +60,40 @@ using namespace std;
   SLASH   "/"
 
   IF
-  THEN
   ELSE
 ;
 
+%token <std::string> STRING "string"
 %token <std::string> IDENTIFIER "identifier"
 %token <int> INT "int"
 %token <bool> BOOL "bool"
 %token <LogOps> LOP "log_op"
 
+%type  < shared_ptr<Stm> > Stm
+%type  < shared_ptr<Stms> > Stms
+
+%type  < shared_ptr<SAssign> > AssignStm
+%type  < shared_ptr<SPrint> > PrintStm
+%type  < std::vector<shared_ptr<Exp> > > PrintContent
+%type  < shared_ptr<SFunc> > FuncStm
+%type  < shared_ptr<SIf> >  IfStm
+%type  < shared_ptr<SReturn> >  RetStm
+
 %type  < shared_ptr<Exp> > Exp
-%type  < shared_ptr<ELet> > LetExp
+//%type  < shared_ptr<ELet> > LetExp
 %type  < shared_ptr<EApp> > AppExp
 %type  < shared_ptr<EVar> > VarExp
 %type  < shared_ptr<EFunc> > FuncExp
 %type  < shared_ptr<ENumb> > NumExp
 %type  < shared_ptr<EBool> > BoExp
-%type  < shared_ptr<EIf> >  IfExp
+%type  < shared_ptr<EString> > StringExp
 %type  < std::vector<std::string> >  params
-%type  < std::map<std::string, shared_ptr<Exp> > >  Assignments
-%type  < std::pair<std::string, shared_ptr<Exp> > >  Assignment
+//%type  < std::vector<std::pair<std::string, shared_ptr<Exp> > > > Assignments
+//%type  < std::pair<std::string, shared_ptr<Exp> > >  Assignment
 %type  < std::vector<shared_ptr<Exp> > >  Arguments
 %type  < shared_ptr<Exp> >  Argument
-%parse-param {shared_ptr<Exp> *ret}
+
+%parse-param {shared_ptr<Stms> *ret}
 
 %%
 %left "+" "-";
@@ -87,47 +102,91 @@ using namespace std;
 %start prog;
 
 prog:
-    Exp "eof"             { *ret = $1; }
-|   Exp "eol"             { *ret = $1;
-                                      Ans answer = (*ret)->eval();
-                                      if (answer.t == Int) {
-                                        std::cout << answer.i << std::endl;
-                                      } else if (answer.t == Bool) {
-                                        std::cout << answer.b << std::endl;
-                                      } else if (answer.t == Unknown) {
-                                        std::cerr << "Error: Unknown Type" << std::endl;
-                                      }
-                                      exit (0);
-                                    }
+    Stms "eof"             { *ret = $1; }
+|   Stms "eol"             { *ret = $1;
+                             (*ret)->exec();
+                             exit (0);
+                           }
 ;
 
+Stms:
+     %empty             {std::vector< shared_ptr<Stm> > stms = std::vector< shared_ptr<Stm> >();
+                         $$=make_shared<Stms>(stms);}
+|    Stm Stms           {$2->stms.insert($2->stms.begin(),$1); $$=$2;}
+;
+
+Stm:
+     IfStm              {$$=$1;}
+|    AssignStm          {$$=$1;}
+|    PrintStm           {$$=$1;}
+|    FuncStm            {$$=$1;}
+|    RetStm             {$$=$1;}
+;
+
+AssignStm:
+     "identifier" "=" Exp ";"       {$$=make_shared<SAssign>($1,$3);}
+;
+
+PrintContent:
+     Exp                         {std::vector<shared_ptr<Exp> > PC = std::vector<shared_ptr<Exp> >();
+                                  PC.push_back($1);
+                                  $$=PC;}
+|    PrintContent "+" Exp        {$1.push_back($3); $$=$1;}
+;
+
+PrintStm:
+     "print" "(" PrintContent ")" ";" {$$=make_shared<SPrint>($3);}
+;
+
+FuncStm:
+     AppExp ";"                       {$$=make_shared<SFunc>($1);}
+;
+
+IfStm   :
+   IF "(" BoExp ")" "{" Stms "}"                      { $$ = make_shared<SIf>($3,$6); }
+|  IF "(" BoExp ")" "{" Stms "}" ELSE "{" Stms "}"     { $$ = make_shared<SIf>($3,$6,$10); }
+|  IF "(" BoExp ")" "{" Stms "}" ELSE IfStm    { $$ = make_shared<SIf>($3,$6,$9); }
+;
+
+RetStm:
+     "return" Exp  ";"                {$$=make_shared<SReturn>($2);}
+;
+
+
+//////////////////////////////////////////////////
+
 Exp:
-     LetExp             { $$ = $1; }
+     "void"             { $$ = make_shared<EVoid>(); }
+//|    LetExp             { $$ = $1; }
 |    NumExp             { $$ = $1; }
 |    BoExp              { $$ = $1; }
 |    VarExp             { $$ = $1; }
-|    IfExp              { $$ = $1; }
+|    AppExp             { $$ = $1; }
 |    FuncExp            { $$ = $1; }
+|    StringExp          { $$ = $1; }
 |    "(" Exp ")"        { $$ = $2; }
 ;
 
+/*
 LetExp:
     "{" Assignments "in" Exp "}"    { $$ =  make_shared<ELet>($2,$4);}
 ;
 
 Assignments:
-    %empty                          {std::map<std::string, shared_ptr<Exp> > context = std::map<std::string, shared_ptr<Exp> >();
-                                      $$=context;}
-|   Assignment Assignments          {$2.insert($1); $$=$2;}
+    %empty                          {std::vector<std::pair<std::string, shared_ptr<Exp> > > assigns = std::vector<std::pair<std::string, shared_ptr<Exp> > >();
+                                      $$=assigns;}
+|   Assignment Assignments          {$2.insert($2.begin(),$1); $$=$2;}
 ;
 
 Assignment:
     "identifier" "=" Exp ";"     { $$ = std::make_pair($1, $3); }
 ;
 
+*/
+
 FuncExp :
-      "(" ")" "->" "{" Exp "}"                 {$$ = make_shared<EFunc>($5);}
-|     "(" params ")" "->" "{" Exp "}"          {$$ = make_shared<EFunc>($2, $6);}
+      "(" ")" "->" "{" Stms "}"                 {$$ = make_shared<EFunc>($5);}
+|     "(" params ")" "->" "{" Stms "}"          {$$ = make_shared<EFunc>($2, $6);}
 ;
 
 params :
@@ -157,29 +216,25 @@ VarExp:
     "identifier"                 {$$ = make_shared<EVar>($1);}
 ;
 
+BoExp   :   "bool"               { $$ = make_shared<EBool>($1); }
+|   "!" Exp                      { $$ = make_shared<EBool>($2); }
+|   Exp LOP Exp                  { $$ = make_shared<EBool>($1,$2,$3); }
+|   "(" BoExp ")"                { $$ = $2; }
+;
+
 NumExp  :   "int"                 { $$ = make_shared<ENumb>($1); }
-|   VarExp                        { $$ = make_shared<ENumb>($1);}
-|   AppExp                       {$$ = make_shared<ENumb>($1);}
-|   LetExp                        { $$ = make_shared<ENumb>($1); }
-|   NumExp "+" NumExp             { $$ = make_shared<ENumb>($1,'+',$3); }
-|   NumExp "-" NumExp             { $$ = make_shared<ENumb>($1,'-',$3); }
-|   NumExp "*" NumExp             { $$ = make_shared<ENumb>($1,'*',$3); }
-|   NumExp "/" NumExp             { $$ = make_shared<ENumb>($1,'/',$3); }
+|   Exp "+" Exp             { $$ = make_shared<ENumb>($1,'+',$3); }
+|   Exp "-" Exp             { $$ = make_shared<ENumb>($1,'-',$3); }
+|   Exp "*" Exp             { $$ = make_shared<ENumb>($1,'*',$3); }
+|   Exp "/" Exp             { $$ = make_shared<ENumb>($1,'/',$3); }
 |   "(" NumExp ")"                { $$ = $2; }
 ;
 
-BoExp   :   "bool"                 { $$ = make_shared<EBool>($1); }
-|   VarExp                       { $$ = make_shared<EBool>($1); }
-|   AppExp                       { $$ = make_shared<EBool>($1); }
-|   LetExp                        { $$ = make_shared<EBool>($1); }
-|   "!" BoExp                      { $$ = make_shared<EBool>($2); }
-|   NumExp LOP NumExp              { $$ = make_shared<EBool>($1,$2,$3); }
-|   "(" BoExp ")"                  { $$ = $2; }
-;
 
-IfExp   :
-    IF BoExp THEN Exp ELSE Exp     { $$ = make_shared<EIf>($2,$4,$6); }
-|   "(" IfExp ")"             { $$ = $2; }
+
+StringExp:
+    "string"                      { $$ = make_shared<EString>($1); }
+|   "endl"                        { $$ = make_shared<EString>("\n"); }
 ;
 
 %%

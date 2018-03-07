@@ -21,7 +21,7 @@ public:
     bool trace_scanning;
     bool trace_parsing;
 
-    shared_ptr<Exp> parse();
+    shared_ptr<Stms> parse();
 
     void error(const std::string &m);
 

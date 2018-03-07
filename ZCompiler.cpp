@@ -9,17 +9,9 @@ static int parse_flag = 0;
 
 void start(const std::string filename) {
   parser_driver driver (filename, lex_flag, parse_flag);
-  shared_ptr<Exp> prog = driver.parse();
-  Ans answer = prog->eval();
-  if (answer.t == Int) {
-    std::cout << answer.i << std::endl;
-  } else if (answer.t == Bool) {
-    std::cout << answer.b << std::endl;
-  } else if (answer.t == Func) {
-    std::cout << "A Function" << std::endl;
-  } else if (answer.t == Unknown) {
-    std::cerr << "Error: Unknown Type" << std::endl;
-  }
+  shared_ptr<Stms> prog = driver.parse();
+  prog->exec();
+  exit(0);
 }
 
 int main(int argc, char *argv[]) {
