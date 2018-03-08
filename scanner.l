@@ -28,7 +28,6 @@ blank [ \t]
 
 "void"      { return yy::parser::make_VOID(); }
 "print"     { return yy::parser::make_PRINT(); }
-"endl"     { return yy::parser::make_ENDL(); }
 "return"    { return yy::parser::make_RETURN(); }
 
 \"(\\.|[^"\\])*\"   { std::string tmp(yytext);

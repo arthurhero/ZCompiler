@@ -39,7 +39,6 @@ using namespace std;
   ENDLINE     "eol"
   VOID        "void"
   PRINT       "print"
-  ENDL        "endl"
   RETURN      "return"
   LCURL       "{"
   RCURL       "}"
@@ -141,7 +140,7 @@ PrintContent:
                                   PC.push_back($1);
                                   $$=PC;}
 |    PrintContent "+" Exp        {$1.push_back($3); $$=$1;}
-|    Exp "+" PrintContent        {$3.push_back($1); $$=$3;}
+|    Exp "+" PrintContent        {$3.insert($3.begin(),$1); $$=$3;}
 ;
 
 PrintStm:
@@ -237,7 +236,6 @@ NumExp  :   "int"                 { $$ = make_shared<ENumb>($1); }
 
 StringExp:
     "string"                      { $$ = make_shared<EString>($1); }
-|   "endl"                        { $$ = make_shared<EString>("\n"); }
 ;
 
 %%

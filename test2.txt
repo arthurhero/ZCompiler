@@ -11,7 +11,18 @@ if (x+y<=4 || !true){
   g=x-2;
   h=x+g;
   print(x+g+h);
+  print("\n");
 } else {
   print(z(4,7));
+  print("\n");
   print("\""+"heyyy"+" yooo "+x+"\"\n");
 }
+
+lol = ()->{
+  print("lolol\n");
+  return true;
+};
+
+yo=lol();
+
+print(yo+"\n");
