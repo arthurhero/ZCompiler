@@ -42,3 +42,10 @@ New features: Let binding, variables and recursion
 Changes to existing features: None
 
 known bugs: None
+
+### [assignment-05]
+New features: Implemented statement list. Added print statement, return statement, assignment statement, function-call statement.
+
+Changes to existing features: Changed if-expression to if-statement.
+
+known bugs: None
