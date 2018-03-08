@@ -1,13 +1,17 @@
-1+
-{x=5;
- y=x-2;
- z=(a,b)->{a+b+x};
- in
- if (x+y>4)
- then {
-    x=10;
-    x=x+1;
-    g=x-2;
-    h=x+g;
-    in x+g+h}
- else z(4,7)}
+x=5;
+y=x-2;
+
+z=(a,b)->{
+  return a+b+x;
+};
+
+if (x+y<=4 || !true){
+  x=10;
+  x=x+1;
+  g=x-2;
+  h=x+g;
+  print(x+g+h);
+} else {
+  print(z(4,7));
+  print("\""+"heyyy"+" yooo "+x+"\"\n");
+}

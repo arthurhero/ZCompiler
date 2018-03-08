@@ -59,6 +59,15 @@ using namespace std;
   STAR    "*"
   SLASH   "/"
 
+  LESS    "<"
+  GREATER ">"
+  LEQ     "<="
+  GEQ     ">="
+  NEQ     "!="
+  LEQUAL  "=="
+  AND     "&&"
+  OR      "||"
+
   IF
   ELSE
 ;
@@ -67,7 +76,6 @@ using namespace std;
 %token <std::string> IDENTIFIER "identifier"
 %token <int> INT "int"
 %token <bool> BOOL "bool"
-%token <LogOps> LOP "log_op"
 
 %type  < shared_ptr<Stm> > Stm
 %type  < shared_ptr<Stms> > Stms
@@ -80,7 +88,6 @@ using namespace std;
 %type  < shared_ptr<SReturn> >  RetStm
 
 %type  < shared_ptr<Exp> > Exp
-//%type  < shared_ptr<ELet> > LetExp
 %type  < shared_ptr<EApp> > AppExp
 %type  < shared_ptr<EVar> > VarExp
 %type  < shared_ptr<EFunc> > FuncExp
@@ -88,14 +95,16 @@ using namespace std;
 %type  < shared_ptr<EBool> > BoExp
 %type  < shared_ptr<EString> > StringExp
 %type  < std::vector<std::string> >  params
-//%type  < std::vector<std::pair<std::string, shared_ptr<Exp> > > > Assignments
-//%type  < std::pair<std::string, shared_ptr<Exp> > >  Assignment
 %type  < std::vector<shared_ptr<Exp> > >  Arguments
 %type  < shared_ptr<Exp> >  Argument
 
 %parse-param {shared_ptr<Stms> *ret}
 
 %%
+%left "||";
+%left "&&";
+%left "<" ">" "<=" ">=" "==" "!=";
+%left "!";
 %left "+" "-";
 %left "*" "/";
 
@@ -128,14 +137,18 @@ AssignStm:
 ;
 
 PrintContent:
-     Exp                         {std::vector<shared_ptr<Exp> > PC = std::vector<shared_ptr<Exp> >();
+     StringExp                   {std::vector<shared_ptr<Exp> > PC = std::vector<shared_ptr<Exp> >();
                                   PC.push_back($1);
                                   $$=PC;}
 |    PrintContent "+" Exp        {$1.push_back($3); $$=$1;}
+|    Exp "+" PrintContent        {$3.push_back($1); $$=$3;}
 ;
 
 PrintStm:
      "print" "(" PrintContent ")" ";" {$$=make_shared<SPrint>($3);}
+|    "print" "(" Exp ")" ";"          {std::vector<shared_ptr<Exp> > PC = std::vector<shared_ptr<Exp> >();
+                                        PC.push_back($3);
+                                       $$=make_shared<SPrint>(PC);}
 ;
 
 FuncStm:
@@ -166,23 +179,6 @@ Exp:
 |    StringExp          { $$ = $1; }
 |    "(" Exp ")"        { $$ = $2; }
 ;
-
-/*
-LetExp:
-    "{" Assignments "in" Exp "}"    { $$ =  make_shared<ELet>($2,$4);}
-;
-
-Assignments:
-    %empty                          {std::vector<std::pair<std::string, shared_ptr<Exp> > > assigns = std::vector<std::pair<std::string, shared_ptr<Exp> > >();
-                                      $$=assigns;}
-|   Assignment Assignments          {$2.insert($2.begin(),$1); $$=$2;}
-;
-
-Assignment:
-    "identifier" "=" Exp ";"     { $$ = std::make_pair($1, $3); }
-;
-
-*/
 
 FuncExp :
       "(" ")" "->" "{" Stms "}"                 {$$ = make_shared<EFunc>($5);}
@@ -218,7 +214,14 @@ VarExp:
 
 BoExp   :   "bool"               { $$ = make_shared<EBool>($1); }
 |   "!" Exp                      { $$ = make_shared<EBool>($2); }
-|   Exp LOP Exp                  { $$ = make_shared<EBool>($1,$2,$3); }
+|   Exp "<" Exp                  { $$ = make_shared<EBool>($1,Less,$3); }
+|   Exp ">" Exp                  { $$ = make_shared<EBool>($1,Greater,$3); }
+|   Exp "<=" Exp                  { $$ = make_shared<EBool>($1,Leq,$3); }
+|   Exp ">=" Exp                  { $$ = make_shared<EBool>($1,Geq,$3); }
+|   Exp "==" Exp                  { $$ = make_shared<EBool>($1,Equal,$3); }
+|   Exp "!=" Exp                  { $$ = make_shared<EBool>($1,Neq,$3); }
+|   Exp "&&" Exp                  { $$ = make_shared<EBool>($1,And,$3); }
+|   Exp "||" Exp                  { $$ = make_shared<EBool>($1,Or,$3); }
 |   "(" BoExp ")"                { $$ = $2; }
 ;
 

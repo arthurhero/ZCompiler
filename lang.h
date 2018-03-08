@@ -29,7 +29,6 @@ struct Exp;
 struct EVoid;
 struct EString;
 struct EVar;
-struct ELet;
 struct EFunc;
 struct EApp;
 struct ENumb;
@@ -37,18 +36,17 @@ struct EBool;
 
 /***** Statements *******************************************************************/
 
-struct Stm {
-    virtual Ans exec() = 0;
-    virtual string gettype() = 0;
-    std::vector<shared_ptr<std::map<std::string, shared_ptr<Exp> > > > parent_contexts;
-};
-
 struct Stms {
     Stms(std::vector< shared_ptr<Stm> > _stms);
     Ans exec();
-    std::vector<shared_ptr<std::map<std::string, shared_ptr<Exp> > > > parent_contexts;
-    std::map<std::string, shared_ptr<Exp> > context;
+    std::vector<std::map<std::string, shared_ptr<Exp> > > context_list;
     std::vector< shared_ptr<Stm> > stms;
+};
+
+struct Stm {
+    virtual Ans exec() = 0;
+    virtual string gettype() = 0;
+    std::vector<std::map<std::string, shared_ptr<Exp> > > *context_list_p;
 };
 
 struct SAssign : public Stm {
@@ -99,7 +97,7 @@ struct Exp {
     virtual Ans eval() = 0;
     virtual string gettype() = 0;
     virtual string tostring() = 0;
-    std::map<std::string, shared_ptr<Exp> > context;
+    std::vector<std::map<std::string, shared_ptr<Exp> > > context_list;
     static std::map<std::string, shared_ptr<Exp> > globals;
 };
 
@@ -121,15 +119,6 @@ struct EString : public Exp {
 struct EVar : public Exp {
     std::string name;
     EVar(std::string _name);
-    Ans eval();
-    string gettype();
-    string tostring();
-};
-
-struct ELet : public Exp {
-    shared_ptr<Exp> expression;
-    std::vector<std::pair<std::string, shared_ptr<Exp> > > assigns;
-    ELet(std::vector<std::pair<std::string, shared_ptr<Exp> > > _assigns, shared_ptr<Exp> _expression);
     Ans eval();
     string gettype();
     string tostring();

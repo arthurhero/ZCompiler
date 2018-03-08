@@ -5,28 +5,39 @@
 
 std::map<std::string, shared_ptr<Exp> > Exp::globals = std::map<std::string, shared_ptr<Exp> >();
 
-void forward_context(
-  std::map<std::string, shared_ptr<Exp> > *src,
-  std::map<std::string, shared_ptr<Exp> > *dst) {
-
-  shared_ptr<std::map<std::string, shared_ptr<Exp> > > tmp =
-    make_shared<std::map<std::string, shared_ptr<Exp> > >();
-  tmp->insert(dst->begin(), dst->end());
-  tmp->insert(src->begin(), src->end());
-  std::swap(*dst, *tmp);
+string unescape(const string& s) {
+  string res;
+  string::const_iterator it = s.begin();
+  while (it != s.end()) {
+    char c = *it++;
+    if (c == '\\' && it != s.end())
+    {
+      switch (*it++) {
+      case '\\': c = '\\'; break;
+      case 'n': c = '\n'; break;
+      case 't': c = '\t'; break;
+      case '"': c = '"'; break;
+      case '\'': c = '\''; break;
+      case 'b': c = '\b'; break;
+      // all other escapes
+      default:
+        // invalid escape sequence - skip it. alternatively you can copy it as is, throw an exception...
+        continue;
+      }
+    }
+    res += c;
+  }
+  return res;
 }
 
-void forward_contexts(
-  std::vector<shared_ptr<std::map<std::string, shared_ptr<Exp> > > > *src,
-  std::vector<shared_ptr<std::map<std::string, shared_ptr<Exp> > > > *dst) {
+void forward_context(
+  std::vector<std::map<std::string, shared_ptr<Exp> > > *src,
+  std::vector<std::map<std::string, shared_ptr<Exp> > > *dst) {
 
-  shared_ptr<std::vector<shared_ptr<std::map<std::string, shared_ptr<Exp> > > > > tmp =
-  make_shared<std::vector<shared_ptr<std::map<std::string, shared_ptr<Exp> > > > >();
-
-  tmp->insert(tmp->end(), dst->begin(), dst->end());
-  tmp->insert(tmp->end(), src->begin(), src->end());
-
-  std::swap(*dst, *tmp);
+  std::map<std::string, shared_ptr<Exp> > tmp =
+    std::map<std::string, shared_ptr<Exp> >();
+  tmp.insert((*src)[0].begin(), (*src)[0].end());
+  dst->insert(dst->begin(),tmp);
 }
 
 string ans_to_string(Ans ans) {
@@ -51,19 +62,20 @@ string ans_to_string(Ans ans) {
 
 /***** Stms *******************************************************************/
 
-Stms::Stms(std::vector< shared_ptr<Stm> > _stms) : stms(_stms){ }
+Stms::Stms(std::vector< shared_ptr<Stm> > _stms) : stms(_stms){
+  std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+  context_list.insert(context_list.begin(), first);
+}
 
 Ans Stms::exec() {
+
   Ans answer;
   answer.t = Void;
 
-  //context.insert(make_pair("test",make_shared<EVoid>()));
-
   for (int i = 0; i < stms.size(); i++) {
     shared_ptr<Stm> stm = stms[i];
-    forward_contexts(&parent_contexts, &(stm->parent_contexts));
-    stm->parent_contexts.insert(stm->parent_contexts.begin(),
-      std::shared_ptr<std::map<std::string, shared_ptr<Exp> > >(&context));
+
+    stm->context_list_p = &context_list;
     Ans tmp = stm->exec();
     if (stm->gettype().compare("SReturn")==0) {
       answer = tmp;
@@ -74,17 +86,8 @@ Ans Stms::exec() {
         break;
       }
     }
-    cout << "end one exec" << endl;
-    for (auto const& p : context) {
-      cout << p.first << endl;
-    }
-    for (shared_ptr<std::map<std::string, shared_ptr<Exp> > > c : parent_contexts) {
-      cout << "in parent" << endl;
-      for (auto const& p : *c) {
-        cout << p.first << endl;
-      }
-    }
   }
+  context_list.erase(context_list.begin());
 
   return answer;
 }
@@ -96,9 +99,7 @@ SAssign::SAssign(std::string _id, shared_ptr<Exp> _exp):id(_id),exp(_exp){}
 Ans SAssign::exec() {
   shared_ptr<Exp> newexp;
 
-  for (shared_ptr<std::map<std::string, shared_ptr<Exp> > > c : parent_contexts) {
-    forward_context(&(*c),&(exp->context));
-  }
+  forward_context(context_list_p,&(exp->context_list));
 
   Ans tmp = exp->eval();
 
@@ -112,34 +113,7 @@ Ans SAssign::exec() {
     newexp = exp;
   }
 
-  bool found = false;
-
-  for (shared_ptr<std::map<std::string, shared_ptr<Exp> > > c : parent_contexts) {
-    for (auto const& p : *c) {
-      cout << "in assign " << p.first << endl;
-    }
-  }
-
-  for (shared_ptr<std::map<std::string, shared_ptr<Exp> > > c : parent_contexts) {
-    std::map<std::string, shared_ptr<Exp> > context = *c;
-    if (context.find(id) != context.end()){
-      context[id] = exp;
-      found = true;
-      break;
-    }
-  }
-
-  if (! found) {
-    shared_ptr<std::map<std::string, shared_ptr<Exp> > > context_p = parent_contexts[0];
-    cout << "inserting " << id << endl;
-    context_p->insert(make_pair(id,newexp));
-  }
-
-  for (shared_ptr<std::map<std::string, shared_ptr<Exp> > > c : parent_contexts) {
-    for (auto const& p : *c) {
-      cout << "in assign 2" << p.first << endl;
-    }
-  }
+  (*context_list_p)[0][id]=newexp;
 
   Ans answer;
   answer.t = Void;
@@ -154,14 +128,8 @@ SPrint::SPrint(std::vector< shared_ptr<Exp> > _content):content(_content) {}
 
 Ans SPrint::exec() {
   for (shared_ptr<Exp> exp : content) {
-    cout << "start to forward in print" << endl;
-    for (shared_ptr<std::map<std::string, shared_ptr<Exp> > > c : parent_contexts) {
-      for (pair<std::string, shared_ptr<Exp> > p : *c) {
-        cout << p.first << endl;
-      }
-      forward_context(&(*c),&(exp->context));
-    }
-    cout << exp->tostring();
+    forward_context(context_list_p,&(exp->context_list));
+    printf("%s",exp->tostring().c_str());
   }
 
   Ans answer;
@@ -176,9 +144,7 @@ string SPrint::gettype() {return "SPrint";}
 SFunc::SFunc(shared_ptr<EApp> _app):app(_app) {}
 
 Ans SFunc::exec() {
-  for (shared_ptr<std::map<std::string, shared_ptr<Exp> > > c : parent_contexts) {
-    forward_context(&(*c),&(app->context));
-  }
+  forward_context(context_list_p,&(app->context_list));
   Ans answer = app->eval();
   return answer;
 }
@@ -197,25 +163,19 @@ SIf::SIf(shared_ptr<EBool> _condition, shared_ptr<Stms> _first, shared_ptr<SIf> 
  : condition(_condition), first(_first), sec_if(_sec_if){ }
 
 Ans SIf::exec() {
-  //cout << "eval if" << endl;
 
   Ans answer;
-  for (shared_ptr<std::map<std::string, shared_ptr<Exp> > > c : parent_contexts) {
-    forward_context(&(*c),&(condition->context));
-  }
-  //cout << "eval cond" << endl;
+  forward_context(context_list_p,&(condition->context_list));
 
   if (condition->eval().b) {
-    //cout << "eval first" << endl;
-    forward_contexts(&parent_contexts, &(first->parent_contexts));
+    forward_context(context_list_p,&(first->context_list));
     answer = first->exec();
   } else {
-    //cout << "eval second" << endl;
     if (second) {
-      forward_contexts(&parent_contexts, &(second->parent_contexts));
+      forward_context(context_list_p,&(second->context_list));
       answer = second->exec();
     } else if (sec_if) {
-      forward_contexts(&parent_contexts, &(sec_if->parent_contexts));
+      sec_if->context_list_p=context_list_p;
       answer = sec_if->exec();
     } else {
       answer.t = Void;
@@ -232,9 +192,7 @@ string SIf::gettype() {return "SIf";}
 SReturn::SReturn(shared_ptr<Exp> _expression) : expression(_expression){}
 
 Ans SReturn::exec() {
-  for (shared_ptr<std::map<std::string, shared_ptr<Exp> > > c : parent_contexts) {
-    forward_context(&(*c),&(expression->context));
-  }
+  forward_context(context_list_p,&(expression->context_list));
   Ans answer = expression->eval();
   return answer;
 }
@@ -243,7 +201,10 @@ string SReturn::gettype() {return "SReturn";}
 
 /***** EVoid *******************************************************************/
 
-EVoid::EVoid(){ }
+EVoid::EVoid(){
+  std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+  context_list.insert(context_list.begin(), first);
+}
 
 Ans EVoid::eval() {
   Ans answer;
@@ -257,7 +218,11 @@ string EVoid::tostring(){return "";}
 
 /***** EString *******************************************************************/
 
-EString::EString(string _str):str(_str){ }
+EString::EString(string _str){
+  str = unescape(_str);
+  std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+  context_list.insert(context_list.begin(), first);
+}
 
 Ans EString::eval() {
   Ans answer;
@@ -273,26 +238,23 @@ string EString::tostring(){return str;}
 
 /***** EVar *******************************************************************/
 
-EVar::EVar(std::string _name) : name(_name) { }
+EVar::EVar(std::string _name) : name(_name) {
+  std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+  context_list.insert(context_list.begin(), first);
+}
 
 Ans EVar::eval() {
-  //cout << "eval var" << endl;
-
   Ans answer;
-  if (context.find(name) == context.end()){
-    if (Exp::globals.find(name) == Exp::globals.end()){
-      std::cerr << "Error: Undeclared Variable in EVar! " << name << std::endl;
-      exit(1);
-   } else {
-     forward_context(&context,&((Exp::globals[name])->context));
-     answer = (Exp::globals[name])->eval();
-     return answer;
-   }
+
+  if (context_list[0].find(name) == context_list[0].end()){
+   std::cerr << "Error: Undeclared Variable in EVar! " << name << std::endl;
+   exit(1);
  } else {
-   forward_context(&context,&((context[name])->context));
-   answer = (context[name])->eval();
-   return answer;
+   forward_context(&context_list,&((context_list[0][name])->context_list));
+   answer = (context_list[0][name])->eval();
  }
+ context_list.erase(context_list.begin());
+ return answer;
 }
 
 string EVar::gettype(){return "EVar";}
@@ -302,51 +264,20 @@ string EVar::tostring(){
   return ans_to_string(answer);
 }
 
-
-/***** ELet *******************************************************************/
-
-ELet::ELet(std::vector<std::pair<std::string, shared_ptr<Exp> > > _assigns, shared_ptr<Exp> _expression)
- : expression(_expression), assigns(_assigns) {
- }
-
-Ans ELet::eval() {
-  //cout << "eval let" << endl;
-
-  for (auto const& p : assigns) {
-    forward_context(&context,&(p.second->context));
-    Ans tmp = p.second->eval();
-    if (tmp.t == Int) {
-      context[p.first] = make_shared<ENumb>(tmp.i);
-      //cout << p.first << "=" << tmp.i << endl;
-    } else if (tmp.t == Bool) {
-      context[p.first] = make_shared<EBool>(tmp.b);
-    } else {
-      context[p.first] = p.second;
-    }
-  }
-
-  Ans answer;
-  forward_context(&context,&(expression->context));
-  answer = expression->eval();
-  return answer;
-}
-
-string ELet::gettype(){return "ELet";}
-
-string ELet::tostring(){
-  Ans answer = this->eval();
-  return ans_to_string(answer);
-}
-
 /***** EFunc *******************************************************************/
 
-EFunc::EFunc(shared_ptr<Stms> _stms): stms(_stms) { }
+EFunc::EFunc(shared_ptr<Stms> _stms): stms(_stms) {
+  std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+  context_list.insert(context_list.begin(), first);
+}
 
 EFunc::EFunc(std::vector<std::string> _params, shared_ptr<Stms> _stms)
- : params(_params), stms(_stms) { }
+ : params(_params), stms(_stms) {
+   std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+   context_list.insert(context_list.begin(), first);
+ }
 
 Ans EFunc::eval() {
-  //cout << "eval func" << endl;
   Ans answer;
   answer.t = Func;
   return answer;
@@ -361,66 +292,58 @@ string EFunc::tostring(){
 
 /***** EApp *******************************************************************/
 
-EApp::EApp(shared_ptr<EFunc> _function) : function(_function){}
+EApp::EApp(shared_ptr<EFunc> _function) : function(_function){
+  std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+  context_list.insert(context_list.begin(), first);
+}
 
 EApp::EApp(std::vector<shared_ptr<Exp> > _args, shared_ptr<EFunc> _function)
  : args(_args), function(_function) {
+   std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+   context_list.insert(context_list.begin(), first);
    if (args.size() != function->params.size()) {
      std::cerr << "Error: Unmatched number of arguments: " << name << std::endl;
      exit(1);
    }
-   for (int i=0; i < args.size(); i++) {
-     forward_context(&context,&(args[i]->context));
-     Ans tmp = args[i]->eval();
-     if (tmp.t == Int) {
-       context[function->params[i]] = make_shared<ENumb>(tmp.i);
-     } else if (tmp.t == Bool) {
-       context[function->params[i]] = make_shared<EBool>(tmp.b);
-     } else {
-       context[function->params[i]] = args[i];
-     }
-   }
  }
+
 
 EApp::EApp(shared_ptr<EVar> _fname) : fname(_fname){
  name = fname->name;
+ std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+ context_list.insert(context_list.begin(), first);
 }
 
 EApp::EApp(std::vector<shared_ptr<Exp> > _args, shared_ptr<EVar> _fname)
   : args(_args), fname(_fname) {
     name = fname->name;
+    std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+    context_list.insert(context_list.begin(), first);
   }
 
 Ans EApp::eval() {
 
-  //cout << "eval app" << endl;
   Ans answer;
+  std::map<std::string, shared_ptr<Exp> > *context_p = &(context_list[0]);
 
   if (fname) {
     Ans func;
 
-    if (context.find(name) == context.end()){
-      if (Exp::globals.find(name) == Exp::globals.end()){
-        std::cerr << "Error: Undeclared Variable in EApp! " << name << std::endl;
-        exit(1);
-     } else {
-       forward_context(&context,&((Exp::globals[name])->context));
-       func = (Exp::globals[name])->eval();
-       if (func.t != Func) {
-         std::cerr << "Error: Variable not of type Func: " << name << std::endl;
-         exit(1);
-       }
-       function = std::dynamic_pointer_cast<EFunc>(Exp::globals[name]);
-     }
+    if (context_p->find(name) == context_p->end()){
+     std::cerr << "Error: Undeclared Variable in EApp! " << name << std::endl;
+     exit(1);
    } else {
-     forward_context(&context,&((context[name])->context));
-     func = (context[name])->eval();
+     //forward_context(&context,&((context[name])->context));
+     forward_context(&context_list,&((*context_p)[name]->context_list));
+     func = ((*context_p)[name])->eval();
      if (func.t != Func) {
        std::cerr << "Error: Variable not of type Func: " << name << std::endl;
        exit(1);
      }
-     function = std::dynamic_pointer_cast<EFunc>(context[name]);
+     function = std::dynamic_pointer_cast<EFunc>((*context_p)[name]);
    }
+
+ }
 
    if (args.size() != function->params.size()) {
      std::cerr << "Error: Unmatched number of arguments: " << name << std::endl;
@@ -428,35 +351,22 @@ Ans EApp::eval() {
    }
 
     for (int i=0; i < args.size(); i++) {
-      forward_context(&context,&(args[i]->context));
+      forward_context(&context_list,&(args[i]->context_list));
+
       Ans tmp = args[i]->eval();
       if (tmp.t == Int) {
-        context[function->params[i]] = make_shared<ENumb>(tmp.i);
+        (*context_p)[function->params[i]] = make_shared<ENumb>(tmp.i);
       } else if (tmp.t == Bool) {
-        context[function->params[i]] = make_shared<EBool>(tmp.b);
+        (*context_p)[function->params[i]] = make_shared<EBool>(tmp.b);
       } else {
-        context[function->params[i]] = args[i];
+        (*context_p)[function->params[i]] = args[i];
       }
     }
-  }
 
-  for (auto const& p : context) {
-    cout << "in app " << p.first << endl;
-    cout << p.second->tostring() << endl;
-  }
-
-  //forward_contexts(&parent_contexts, &(function->stms->parent_contexts));
-  //function->stms->parent_contexts.insert(function->stms->parent_contexts.begin(),
-  //  std::shared_ptr<std::map<std::string, shared_ptr<Exp> > >(&context));
-  function->stms->context.clear();
-  function->stms->parent_contexts.clear();
-  forward_context(&context,&(function->stms->context));
-/*
-  for (shared_ptr<std::map<std::string, shared_ptr<Exp> > > c : parent_contexts) {
-    forward_context(&(*c),&(function->stms->context));
-  }
-*/
+  forward_context(&context_list,&(function->stms->context_list));
   answer = function->stms->exec();
+
+  context_list.erase(context_list.begin());
   return answer;
 }
 
@@ -469,18 +379,23 @@ string EApp::tostring(){
 
 /***** ENumb *******************************************************************/
 
-ENumb::ENumb(int _value) : value(_value) { }
+ENumb::ENumb(int _value) : value(_value) {
+  std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+  context_list.insert(context_list.begin(), first);
+}
 
 ENumb::ENumb(shared_ptr<Exp> _loperand, char _oper, shared_ptr<Exp> _roperand)
- : loperand(_loperand), roperand(_roperand), oper(_oper){ }
+ : loperand(_loperand), roperand(_roperand), oper(_oper){
+   std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+   context_list.insert(context_list.begin(), first);
+ }
 
 Ans ENumb::eval() {
-  //cout << "eval numb" << endl;
-
   Ans answer;
   if (loperand) {
-    forward_context(&context,&(loperand->context));
-    forward_context(&context,&(roperand->context));
+    forward_context(&context_list,&(loperand->context_list));
+    forward_context(&context_list,&(roperand->context_list));
+
     Ans f = loperand->eval();
     Ans s = roperand->eval();
     if (f.t != Int || s.t != Int) {
@@ -492,7 +407,6 @@ Ans ENumb::eval() {
       answer.i = f.i + s.i;
       break;
       case '-':
-      //cout << "minus" << endl;
       answer.i = f.i - s.i;
       break;
       case '*':
@@ -503,13 +417,10 @@ Ans ENumb::eval() {
       break;
     }
   } else {
-    //cout << "literal" << endl;
-
     answer.i = value;
   }
   answer.t = Int;
-  //cout << answer.i << endl;
-  //cout << "numb " << answer.i << endl;
+  context_list.erase(context_list.begin());
   return answer;
  }
 
@@ -522,19 +433,27 @@ string ENumb::tostring(){
 
 /***** EBool ******************************************************************/
 
-EBool::EBool(bool _value) : value(_value) { }
+EBool::EBool(bool _value) : value(_value) {
+  std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+  context_list.insert(context_list.begin(), first);
+}
 
-EBool::EBool(shared_ptr<Exp> _to_negate) : to_negate(_to_negate){}
+EBool::EBool(shared_ptr<Exp> _to_negate) : to_negate(_to_negate){
+  std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+  context_list.insert(context_list.begin(), first);
+}
 
 EBool::EBool(shared_ptr<Exp> _loperand, LogOps _oper, shared_ptr<Exp> _roperand)
- : loperand(_loperand), roperand(_roperand), oper(_oper){ }
+ : loperand(_loperand), roperand(_roperand), oper(_oper){
+   std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+   context_list.insert(context_list.begin(), first);
+ }
 
 Ans EBool::eval() {
-  //cout << "eval bool" << endl;
-
   Ans answer;
   if (to_negate) {
-    forward_context(&context,&(to_negate->context));
+    forward_context(&context_list,&(to_negate->context_list));
+
     Ans tmp = to_negate->eval();
     if (tmp.t == Bool) {
       answer.b = (!tmp.b);
@@ -543,8 +462,9 @@ Ans EBool::eval() {
       exit(1);
     }
   } else if (loperand) {
-    forward_context(&context,&(loperand->context));
-    forward_context(&context,&(roperand->context));
+    forward_context(&context_list,&(loperand->context_list));
+    forward_context(&context_list,&(roperand->context_list));
+
     Ans f = loperand->eval();
     Ans s = roperand->eval();
 
@@ -553,49 +473,49 @@ Ans EBool::eval() {
         cerr << "Expected Int and Int. Given " << f.t << " and " << s.t << endl;
         exit(1);
       }
-      if (loperand->eval().i < roperand->eval().i) answer.b = true;
+      if (f.i < s.i) answer.b = true;
       else answer.b = false;
     } else if (oper == Greater) {
       if (f.t != Int || s.t != Int) {
         cerr << "Expected Int and Int. Given " << f.t << " and " << s.t << endl;
         exit(1);
       }
-      if (loperand->eval().i > roperand->eval().i) answer.b = true;
+      if (f.i > s.i) answer.b = true;
       else answer.b = false;
     } else if (oper == Leq) {
       if (f.t != Int || s.t != Int) {
         cerr << "Expected Int and Int. Given " << f.t << " and " << s.t << endl;
         exit(1);
       }
-      if (loperand->eval().i <= roperand->eval().i) answer.b = true;
+      if (f.i <= s.i) answer.b = true;
       else answer.b = false;
     } else if (oper == Geq) {
       if (f.t != Int || s.t != Int) {
         cerr << "Expected Int and Int. Given " << f.t << " and " << s.t << endl;
         exit(1);
       }
-      if (loperand->eval().i >= roperand->eval().i) answer.b = true;
+      if (f.i >= s.i) answer.b = true;
       else answer.b = false;
     } else if (oper == And) {
       if (f.t != Bool || s.t != Bool) {
         cerr << "Expected Bool and Bool. Given " << f.t << " and " << s.t << endl;
         exit(1);
       }
-      if (loperand->eval().b && roperand->eval().b) answer.b = true;
+      if (f.b && s.b) answer.b = true;
       else answer.b = false;
     } else if (oper == Or) {
       if (f.t != Bool || s.t != Bool) {
         cerr << "Expected Bool and Bool. Given " << f.t << " and " << s.t << endl;
         exit(1);
       }
-      if (loperand->eval().b || roperand->eval().b) answer.b = true;
+      if (f.b || s.b) answer.b = true;
       else answer.b = false;
     } else if (oper == Equal) {
       if (f.t == Int || s.t == Int) {
-        if (loperand->eval().i == roperand->eval().i) answer.b = true;
+        if (f.i == s.i) answer.b = true;
         else answer.b = false;
       } else if (f.t == Bool || s.t == Bool) {
-        if (loperand->eval().b == roperand->eval().b) answer.b = true;
+        if (f.b == s.b) answer.b = true;
         else answer.b = false;
       } else {
         cerr << "Expected Bool/Int and Bool/Int. Given " << f.t << " and " << s.t << endl;
@@ -603,10 +523,10 @@ Ans EBool::eval() {
       }
     } else if (oper == Neq) {
       if (f.t == Int || s.t == Int) {
-        if (loperand->eval().i != roperand->eval().i) answer.b = true;
+        if (f.i != s.i) answer.b = true;
         else answer.b = false;
       } else if (f.t == Bool || s.t == Bool) {
-        if (loperand->eval().b != roperand->eval().b) answer.b = true;
+        if (f.b != s.b) answer.b = true;
         else answer.b = false;
       } else {
         cerr << "Expected Bool/Int and Bool/Int. Given " << f.t << " and " << s.t << endl;
@@ -617,6 +537,8 @@ Ans EBool::eval() {
     answer.b = value;
   }
   answer.t = Bool;
+
+  context_list.erase(context_list.begin());
   return answer;
  }
 

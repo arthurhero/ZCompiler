@@ -17,11 +17,9 @@
 
 %option noyywrap nounput batch debug noinput
 
-quote "\\\""
 id    [a-zA-Z][a-zA-Z_0-9]*
 int   [0-9]+
 blank [ \t]
-log_op "<="|">="|"=="|"!="|"&&"|"||"|[<>]
 
 %%
 
@@ -33,7 +31,7 @@ log_op "<="|">="|"=="|"!="|"&&"|"||"|[<>]
 "endl"     { return yy::parser::make_ENDL(); }
 "return"    { return yy::parser::make_RETURN(); }
 
-"\"".(quote?)."\""   { std::string tmp(yytext);
+\"(\\.|[^"\\])*\"   { std::string tmp(yytext);
                        return yy::parser::make_STRING(tmp.substr(1,tmp.length()-2)); }
 
 "{"         { return yy::parser::make_LCURL(); }
@@ -52,28 +50,14 @@ log_op "<="|">="|"=="|"!="|"&&"|"||"|[<>]
 "<-"      { return yy::parser::make_LARROW(); }
 ","       { return yy::parser::make_COMMA();  }
 
-{log_op}   {
-    errno = 0;
-    if (strcmp(yytext, "<")==0) {
-      return yy::parser::make_LOP(Less);
-    } else if (strcmp(yytext, ">")==0) {
-      return yy::parser::make_LOP(Greater);
-    } else if (strcmp(yytext, "<=")==0) {
-      return yy::parser::make_LOP(Leq);
-    } else if (strcmp(yytext, ">=")==0) {
-      return yy::parser::make_LOP(Geq);
-    } else if (strcmp(yytext, "==")==0) {
-      return yy::parser::make_LOP(Equal);
-    } else if (strcmp(yytext, "!=")==0) {
-      return yy::parser::make_LOP(Neq);
-    } else if (strcmp(yytext, "&&")==0) {
-      return yy::parser::make_LOP(And);
-    } else if (strcmp(yytext, "||")==0) {
-      return yy::parser::make_LOP(Or);
-    } else {
-      driver.error ("unexpected logical operator error");
-    }
-}
+"<"     { return yy::parser::make_LESS(); }
+">"     { return yy::parser::make_GREATER(); }
+"<="     { return yy::parser::make_LEQ(); }
+">="     { return yy::parser::make_GEQ(); }
+"=="     { return yy::parser::make_EQUAL(); }
+"!="     { return yy::parser::make_NEQ(); }
+"&&"     { return yy::parser::make_AND(); }
+"||"     { return yy::parser::make_OR(); }
 
 "!"     { return yy::parser::make_EXCL(); }
 
