@@ -48,3 +48,12 @@ while(con>0){
   }
   print("greater than 6\n");
 }
+
+ref1 = (a,p)->{
+  a=10;
+  *p=10;
+};
+
+ref1(x,boo);
+
+print("hey "+x+*boo+"\n");

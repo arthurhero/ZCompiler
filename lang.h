@@ -6,7 +6,7 @@
 
 using namespace std;
 
-enum Type {Int, Bool, Func, String, Void, Unknown};
+enum Type {Int, Bool, Func, String, Void, Ref, Unknown};
 enum LogOps {Equal, Less, Greater, Leq, Geq, Neq, And, Or};
 
 struct Ans {

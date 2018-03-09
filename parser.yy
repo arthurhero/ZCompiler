@@ -216,6 +216,10 @@ params :
 |    "identifier"                  {std::vector<std::string> tmp;
                                       tmp.push_back($1);
                                       $$=tmp;}
+|    "*""identifier" "," params      {$4.push_back("*"+$2); $$=$4;}
+|    "*""identifier"               {std::vector<std::string> tmp;
+                                 tmp.push_back("*"+$2);
+                                 $$=tmp;}
 ;
 
 AppExp :

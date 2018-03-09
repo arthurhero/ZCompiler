@@ -138,7 +138,20 @@ Ans SAssign::exec() {
   }
 
   if (is_ref) {
-    Exp::refs[id]=newexp;
+    if ((*context_list_p)[0].find(id) == (*context_list_p)[0].end()){
+      Exp::refs[id]=newexp;
+    } else {
+      if ((*context_list_p)[0][id]->gettype().compare("EVar")!=0) {
+        Exp::refs[id]=newexp;
+      }
+      string nname= std::dynamic_pointer_cast<EVar>((*context_list_p)[0][id])->name;
+      if (Exp::refs.find(nname) == Exp::refs.end()){
+        std::cerr << "Error: Undeclared Reference in SAssign! " << nname << std::endl;
+        exit(1);
+      } else {
+        Exp::refs[nname]=newexp;
+      }
+    }
   } else {
     (*context_list_p)[0][id]=newexp;
   }
@@ -374,16 +387,33 @@ Ans EVar::eval() {
 
   if (is_ref) {
     if (Exp::refs.find(name) == Exp::refs.end()){
-     std::cerr << "Error: Undeclared Reference in EVar! " << name << std::endl;
-     exit(1);
+      if (context_list[0].find(name) == context_list[0].end()){
+        std::cerr << "Error: Undeclared Reference in EVar! " << name << std::endl;
+        exit(1);
+      }
+      if (context_list[0][name]->gettype().compare("EVar")!=0) {
+        std::cerr << "Error: Not a valid reference! " << name << std::endl;
+        exit(1);
+      }
+      string nname= std::dynamic_pointer_cast<EVar>(context_list[0][name])->name;
+      if (Exp::refs.find(nname) == Exp::refs.end()){
+        std::cerr << "Error: Undeclared Reference in EVar! " << nname << std::endl;
+        exit(1);
+      } else {
+        forward_context(&context_list,&((Exp::refs[nname])->context_list));
+        answer = (Exp::refs[nname])->eval();
+      }
    } else {
      forward_context(&context_list,&((Exp::refs[name])->context_list));
      answer = (Exp::refs[name])->eval();
    }
  } else {
    if (context_list[0].find(name) == context_list[0].end()){
-    std::cerr << "Error: Undeclared Variable in EVar! " << name << std::endl;
-    exit(1);
+     if (Exp::refs.find(name) == Exp::refs.end()){
+       std::cerr << "Error: Undeclared Variable in EVar! " << name << std::endl;
+       exit(1);
+     }
+     answer.t = Ref;
   } else {
     forward_context(&context_list,&((context_list[0][name])->context_list));
     answer = (context_list[0][name])->eval();
