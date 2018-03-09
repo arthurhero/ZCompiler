@@ -420,6 +420,9 @@ Ans ENumb::eval() {
     answer.i = value;
   }
   answer.t = Int;
+  if (is_negative) {
+    answer.i = (-1)*(answer.i);
+  }
   context_list.erase(context_list.begin());
   return answer;
  }

@@ -153,6 +153,7 @@ struct ENumb : public Exp {
     shared_ptr<Exp> roperand;
     char oper;
     int value;
+    bool is_negative = false;
     ENumb(int _value);
     ENumb(shared_ptr<Exp> _loperand, char _oper, shared_ptr<Exp> _roperand);
     Ans eval();

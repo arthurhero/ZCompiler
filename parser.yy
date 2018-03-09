@@ -229,6 +229,7 @@ NumExp  :   "int"                 { $$ = make_shared<ENumb>($1); }
 |   Exp "-" Exp             { $$ = make_shared<ENumb>($1,'-',$3); }
 |   Exp "*" Exp             { $$ = make_shared<ENumb>($1,'*',$3); }
 |   Exp "/" Exp             { $$ = make_shared<ENumb>($1,'/',$3); }
+|   "-" NumExp              { $2->is_negative=true; $$ = $2; }
 |   "(" NumExp ")"                { $$ = $2; }
 ;
 

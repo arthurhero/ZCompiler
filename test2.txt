@@ -2,7 +2,7 @@ x=5;
 y=x-2;
 
 z=(a,b)->{
-  return a+b+x;
+  return -(a+b+x);
 };
 
 if (x+y<=4 || !true){
