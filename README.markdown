@@ -49,3 +49,10 @@ New features: Implemented statement list. Added print statement, return statemen
 Changes to existing features: Changed if-expression to if-statement.
 
 known bugs: None
+
+### [assignment-06]
+New features: Reference and while loop 
+
+Changes to existing features: None
+
+known bugs: None
