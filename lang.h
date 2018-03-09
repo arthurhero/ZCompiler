@@ -20,11 +20,16 @@ struct Ans {
 
 struct Stm;
 struct Stms;
+struct SBreak;
+struct SContinue;
 struct SAssign;
 struct SPrint;
 struct SFunc;
+struct subStms;
 struct SIf;
+struct SWhile;
 struct SReturn;
+
 struct Exp;
 struct EVoid;
 struct EString;
@@ -47,6 +52,18 @@ struct Stm {
     virtual Ans exec() = 0;
     virtual string gettype() = 0;
     std::vector<std::map<std::string, shared_ptr<Exp> > > *context_list_p;
+};
+
+struct SBreak : public Stm {
+  SBreak();
+  Ans exec();
+  string gettype();
+};
+
+struct SContinue : public Stm {
+  SContinue();
+  Ans exec();
+  string gettype();
 };
 
 struct SAssign : public Stm {
@@ -72,14 +89,36 @@ struct SFunc : public Stm {
   string gettype();
 };
 
+struct subStms {
+    subStms(std::vector< shared_ptr<Stm> > _stms);
+    Ans exec();
+    std::vector<std::map<std::string, shared_ptr<Exp> > > context_list;
+    std::vector<std::map<std::string, shared_ptr<Exp> > > *context_list_p;
+    bool *break_ctl_p;
+    bool *continue_ctl_p;
+    std::vector< shared_ptr<Stm> > stms;
+};
+
 struct SIf : public Stm {
     shared_ptr<EBool> condition;
-    shared_ptr<Stms> first;
-    shared_ptr<Stms> second;
+    shared_ptr<subStms> first;
+    shared_ptr<subStms> second;
     shared_ptr<SIf> sec_if;
-    SIf(shared_ptr<EBool> _condition, shared_ptr<Stms> _first);
-    SIf(shared_ptr<EBool> _condition, shared_ptr<Stms> _first, shared_ptr<Stms> _second);
-    SIf(shared_ptr<EBool> _condition, shared_ptr<Stms> _first, shared_ptr<SIf> _sec_if);
+    bool *break_ctl_p;
+    bool *continue_ctl_p;
+    SIf(shared_ptr<EBool> _condition, shared_ptr<subStms> _first);
+    SIf(shared_ptr<EBool> _condition, shared_ptr<subStms> _first, shared_ptr<subStms> _second);
+    SIf(shared_ptr<EBool> _condition, shared_ptr<subStms> _first, shared_ptr<SIf> _sec_if);
+    Ans exec();
+    string gettype();
+};
+
+struct SWhile : public Stm {
+    shared_ptr<EBool> condition;
+    shared_ptr<subStms> body;
+    bool break_ctl = false;
+    bool continue_ctl = false;
+    SWhile(shared_ptr<EBool> _condition, shared_ptr<subStms> _body);
     Ans exec();
     string gettype();
 };

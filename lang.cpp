@@ -92,6 +92,30 @@ Ans Stms::exec() {
   return answer;
 }
 
+/***** SBreak *******************************************************************/
+
+SBreak::SBreak(){}
+
+Ans SBreak::exec() {
+  Ans answer;
+  answer.t = Void;
+  return answer;
+}
+
+string SBreak::gettype() {return "SBreak";}
+
+/***** SContinue *******************************************************************/
+
+SContinue::SContinue(){}
+
+Ans SContinue::exec() {
+  Ans answer;
+  answer.t = Void;
+  return answer;
+}
+
+string SContinue::gettype() {return "SContinue";}
+
 /***** SAssign *******************************************************************/
 
 SAssign::SAssign(std::string _id, shared_ptr<Exp> _exp):id(_id),exp(_exp){}
@@ -155,15 +179,79 @@ Ans SFunc::exec() {
 
 string SFunc::gettype() {return "SFunc";}
 
+/***** subStms *******************************************************************/
+
+subStms::subStms(std::vector< shared_ptr<Stm> > _stms) : stms(_stms){
+  std::map<std::string, shared_ptr<Exp> > first = std::map<std::string, shared_ptr<Exp> >();
+  context_list.insert(context_list.begin(), first);
+}
+
+Ans subStms::exec() {
+
+  Ans answer;
+  answer.t = Void;
+
+  for (int i = 0; i < stms.size(); i++) {
+    shared_ptr<Stm> stm = stms[i];
+
+    if (break_ctl_p) {
+      if (*break_ctl_p) break;
+    }
+
+    if (continue_ctl_p) {
+      if (*continue_ctl_p) {
+        break;
+      }
+    }
+
+    stm->context_list_p = &context_list;
+    if (stm->gettype().compare("SIf")==0) {
+      std::dynamic_pointer_cast<SIf>(stm)->context_list_p = context_list_p;
+      std::dynamic_pointer_cast<SIf>(stm)->break_ctl_p = break_ctl_p;
+      std::dynamic_pointer_cast<SIf>(stm)->continue_ctl_p = continue_ctl_p;
+    }
+    Ans tmp = stm->exec();
+    if (stm->gettype().compare("SReturn")==0) {
+      answer = tmp;
+      break;
+    } else if (stm->gettype().compare("SIf")==0) {
+      if (tmp.t != Void) {
+        answer = tmp;
+        break;
+      }
+    } else if (stm->gettype().compare("SBreak")==0) {
+      if (break_ctl_p) {
+        *break_ctl_p = true;
+      }
+      break;
+    } else if (stm->gettype().compare("SContinue")==0) {
+      if (continue_ctl_p) {
+        *continue_ctl_p = true;
+      }
+      break;
+    }
+  }
+
+  for (std::pair<std::string, shared_ptr<Exp> > p: context_list[0]) {
+    if ((*context_list_p)[0].find(p.first)!=(*context_list_p)[0].end()) {
+      (*context_list_p)[0][p.first]=p.second;
+    }
+  }
+
+  context_list.erase(context_list.begin());
+
+  return answer;
+}
+
 /***** SIf *******************************************************************/
 
-SIf::SIf(shared_ptr<EBool> _condition, shared_ptr<Stms> _first)
+SIf::SIf(shared_ptr<EBool> _condition, shared_ptr<subStms> _first)
  : condition(_condition), first(_first){ }
 
-SIf::SIf(shared_ptr<EBool> _condition, shared_ptr<Stms> _first, shared_ptr<Stms> _second)
+SIf::SIf(shared_ptr<EBool> _condition, shared_ptr<subStms> _first, shared_ptr<subStms> _second)
  : condition(_condition), first(_first), second(_second){ }
 
-SIf::SIf(shared_ptr<EBool> _condition, shared_ptr<Stms> _first, shared_ptr<SIf> _sec_if)
+SIf::SIf(shared_ptr<EBool> _condition, shared_ptr<subStms> _first, shared_ptr<SIf> _sec_if)
  : condition(_condition), first(_first), sec_if(_sec_if){ }
 
 Ans SIf::exec() {
@@ -172,14 +260,22 @@ Ans SIf::exec() {
   forward_context(context_list_p,&(condition->context_list));
 
   if (condition->eval().b) {
+    first->context_list_p = context_list_p;
+    first->break_ctl_p = break_ctl_p;
+    first->continue_ctl_p = continue_ctl_p;
     forward_context(context_list_p,&(first->context_list));
     answer = first->exec();
   } else {
     if (second) {
+      second->context_list_p = context_list_p;
+      second->break_ctl_p = break_ctl_p;
+      second->continue_ctl_p = continue_ctl_p;
       forward_context(context_list_p,&(second->context_list));
       answer = second->exec();
     } else if (sec_if) {
-      sec_if->context_list_p=context_list_p;
+      sec_if->context_list_p = context_list_p;
+      sec_if->break_ctl_p = break_ctl_p;
+      sec_if->continue_ctl_p = continue_ctl_p;
       answer = sec_if->exec();
     } else {
       answer.t = Void;
@@ -190,6 +286,32 @@ Ans SIf::exec() {
 
 string SIf::gettype() {return "SIf";}
 
+/***** SWhile *******************************************************************/
+
+SWhile::SWhile(shared_ptr<EBool> _condition, shared_ptr<subStms> _body)
+ : condition(_condition), body(_body){ }
+
+Ans SWhile::exec() {
+
+  Ans answer;
+  forward_context(context_list_p,&(condition->context_list));
+  bool go_on = condition->eval().b;
+  body->break_ctl_p = &break_ctl;
+  body->continue_ctl_p = &continue_ctl;
+
+  while (go_on && !break_ctl) {
+    body->context_list_p=context_list_p;
+    forward_context(context_list_p,&(body->context_list));
+    answer = body->exec();
+    forward_context(context_list_p,&(condition->context_list));
+    go_on = condition->eval().b;
+    continue_ctl = false;
+  }
+
+  return answer;
+ }
+
+string SWhile::gettype() {return "SWhile";}
 
 /***** SReturn *******************************************************************/
 

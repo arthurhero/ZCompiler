@@ -23,8 +23,8 @@ if (x+y>4 || !true){
 
 lol = ()->{
   *boo = -100;
-  print("lolol\n");
   return true;
+  print("lolol\n");
 };
 
 yo=lol();
@@ -33,3 +33,18 @@ print("boo "+*boo+"\n");
 print("\""+"heyyy"+" yooo "+x+"\"\n");
 
 print(yo+"\n");
+
+con = 10;
+while(con>0){
+  if (con<5) {
+    print("less than 5 lol\n");
+    break;
+  }
+  print(con+"\n");
+  con=con-1;
+  if (con<7) {
+    print("here\n");
+    continue;
+  }
+  print("greater than 6\n");
+}

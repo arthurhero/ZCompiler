@@ -52,8 +52,6 @@ using namespace std;
   AMPER       "&"
   COMMA       ","
 
-  IN          "in"
-
   PLUS    "+"
   MINUS   "-"
   STAR    "*"
@@ -70,6 +68,9 @@ using namespace std;
 
   IF
   ELSE
+  WHILE
+  BREAK   "break"
+  CONTINUE  "continue"
 ;
 
 %token <std::string> STRING "string"
@@ -84,7 +85,13 @@ using namespace std;
 %type  < shared_ptr<SPrint> > PrintStm
 %type  < std::vector<shared_ptr<Exp> > > PrintContent
 %type  < shared_ptr<SFunc> > FuncStm
+
+%type  < shared_ptr<SBreak> >  BreakStm
+%type  < shared_ptr<SContinue> >  ContinueStm
+%type  < shared_ptr<subStms> > subStms
 %type  < shared_ptr<SIf> >  IfStm
+%type  < shared_ptr<SWhile> >  WhileStm
+
 %type  < shared_ptr<SReturn> >  RetStm
 
 %type  < shared_ptr<Exp> > Exp
@@ -126,6 +133,9 @@ Stms:
 
 Stm:
      IfStm              {$$=$1;}
+|    WhileStm           {$$=$1;}
+|    BreakStm           {$$=$1;}
+|    ContinueStm        {$$=$1;}
 |    AssignStm          {$$=$1;}
 |    PrintStm           {$$=$1;}
 |    FuncStm            {$$=$1;}
@@ -156,10 +166,26 @@ FuncStm:
      AppExp ";"                       {$$=make_shared<SFunc>($1);}
 ;
 
+BreakStm:
+    "break" ";"                 {$$=make_shared<SBreak>();}
+;
+
+ContinueStm:
+    "continue" ";"                 {$$=make_shared<SContinue>();}
+;
+
+subStms:
+   Stms                            {$$=make_shared<subStms>($1->stms);}
+;
+
 IfStm   :
-   IF "(" BoExp ")" "{" Stms "}"                      { $$ = make_shared<SIf>($3,$6); }
-|  IF "(" BoExp ")" "{" Stms "}" ELSE "{" Stms "}"     { $$ = make_shared<SIf>($3,$6,$10); }
-|  IF "(" BoExp ")" "{" Stms "}" ELSE IfStm    { $$ = make_shared<SIf>($3,$6,$9); }
+   IF "(" BoExp ")" "{" subStms "}"               { $$ = make_shared<SIf>($3,$6); }
+|  IF "(" BoExp ")" "{" subStms "}" ELSE "{" subStms "}"     { $$ = make_shared<SIf>($3,$6,$10); }
+|  IF "(" BoExp ")" "{" subStms "}" ELSE IfStm    { $$ = make_shared<SIf>($3,$6,$9); }
+;
+
+WhileStm:
+   WHILE "(" BoExp ")" "{" subStms "}"            { $$ = make_shared<SWhile>($3,$6); }
 ;
 
 RetStm:

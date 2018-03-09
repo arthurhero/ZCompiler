@@ -43,8 +43,10 @@ blank [ \t]
 
 "if"        { return yy::parser::make_IF(); }
 "else"      { return yy::parser::make_ELSE(); }
+"while"      { return yy::parser::make_WHILE(); }
+"break"      { return yy::parser::make_BREAK(); }
+"continue"      { return yy::parser::make_CONTINUE(); }
 
-"in"      { return yy::parser::make_IN(); }
 "->"      { return yy::parser::make_RARROW(); }
 "<-"      { return yy::parser::make_LARROW(); }
 ","       { return yy::parser::make_COMMA();  }
@@ -53,7 +55,7 @@ blank [ \t]
 ">"     { return yy::parser::make_GREATER(); }
 "<="     { return yy::parser::make_LEQ(); }
 ">="     { return yy::parser::make_GEQ(); }
-"=="     { return yy::parser::make_EQUAL(); }
+"=="     { return yy::parser::make_LEQUAL(); }
 "!="     { return yy::parser::make_NEQ(); }
 "&&"     { return yy::parser::make_AND(); }
 "||"     { return yy::parser::make_OR(); }
