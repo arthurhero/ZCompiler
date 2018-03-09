@@ -59,6 +59,7 @@ blank [ \t]
 "||"     { return yy::parser::make_OR(); }
 
 "!"     { return yy::parser::make_EXCL(); }
+"&"     { return yy::parser::make_AMPER(); }
 
 "="     { return yy::parser::make_EQUAL(); }
 

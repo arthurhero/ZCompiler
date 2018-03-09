@@ -49,6 +49,7 @@ using namespace std;
   SEMI        ";"
   EQUAL       "="
   EXCL        "!"
+  AMPER       "&"
   COMMA       ","
 
   IN          "in"
@@ -133,6 +134,7 @@ Stm:
 
 AssignStm:
      "identifier" "=" Exp ";"       {$$=make_shared<SAssign>($1,$3);}
+|    "*""identifier" "=" Exp ";"       {$$=make_shared<SAssign>($2,$4);$$->is_ref=true;}
 ;
 
 PrintContent:
@@ -169,7 +171,6 @@ RetStm:
 
 Exp:
      "void"             { $$ = make_shared<EVoid>(); }
-//|    LetExp             { $$ = $1; }
 |    NumExp             { $$ = $1; }
 |    BoExp              { $$ = $1; }
 |    VarExp             { $$ = $1; }
@@ -209,6 +210,7 @@ Argument:
 
 VarExp:
     "identifier"                 {$$ = make_shared<EVar>($1);}
+|   "*""identifier"              {$$ = make_shared<EVar>($2);$$->is_ref=true;}
 ;
 
 BoExp   :   "bool"               { $$ = make_shared<EBool>($1); }

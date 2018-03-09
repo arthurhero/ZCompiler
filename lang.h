@@ -52,6 +52,7 @@ struct Stm {
 struct SAssign : public Stm {
   std::string id;
   shared_ptr<Exp> exp;
+  bool is_ref = false;
   SAssign(std::string _id, shared_ptr<Exp> _exp);
   Ans exec();
   string gettype();
@@ -98,7 +99,7 @@ struct Exp {
     virtual string gettype() = 0;
     virtual string tostring() = 0;
     std::vector<std::map<std::string, shared_ptr<Exp> > > context_list;
-    static std::map<std::string, shared_ptr<Exp> > globals;
+    static std::map<std::string, shared_ptr<Exp> > refs;
 };
 
 struct EVoid : public Exp {
@@ -118,6 +119,7 @@ struct EString : public Exp {
 
 struct EVar : public Exp {
     std::string name;
+    bool is_ref=false;
     EVar(std::string _name);
     Ans eval();
     string gettype();

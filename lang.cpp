@@ -3,7 +3,7 @@
 
 #include "lang.h"
 
-std::map<std::string, shared_ptr<Exp> > Exp::globals = std::map<std::string, shared_ptr<Exp> >();
+std::map<std::string, shared_ptr<Exp> > Exp::refs = std::map<std::string, shared_ptr<Exp> >();
 
 string unescape(const string& s) {
   string res;
@@ -113,7 +113,11 @@ Ans SAssign::exec() {
     newexp = exp;
   }
 
-  (*context_list_p)[0][id]=newexp;
+  if (is_ref) {
+    Exp::refs[id]=newexp;
+  } else {
+    (*context_list_p)[0][id]=newexp;
+  }
 
   Ans answer;
   answer.t = Void;
@@ -246,13 +250,24 @@ EVar::EVar(std::string _name) : name(_name) {
 Ans EVar::eval() {
   Ans answer;
 
-  if (context_list[0].find(name) == context_list[0].end()){
-   std::cerr << "Error: Undeclared Variable in EVar! " << name << std::endl;
-   exit(1);
+  if (is_ref) {
+    if (Exp::refs.find(name) == Exp::refs.end()){
+     std::cerr << "Error: Undeclared Reference in EVar! " << name << std::endl;
+     exit(1);
+   } else {
+     forward_context(&context_list,&((Exp::refs[name])->context_list));
+     answer = (Exp::refs[name])->eval();
+   }
  } else {
-   forward_context(&context_list,&((context_list[0][name])->context_list));
-   answer = (context_list[0][name])->eval();
+   if (context_list[0].find(name) == context_list[0].end()){
+    std::cerr << "Error: Undeclared Variable in EVar! " << name << std::endl;
+    exit(1);
+  } else {
+    forward_context(&context_list,&((context_list[0][name])->context_list));
+    answer = (context_list[0][name])->eval();
+  }
  }
+
  context_list.erase(context_list.begin());
  return answer;
 }

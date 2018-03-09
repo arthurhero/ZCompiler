@@ -1,11 +1,15 @@
 x=5;
 y=x-2;
 
+*boo = 3;
+
+print("boo "+*boo+"\n");
+
 z=(a,b)->{
   return -(a+b+x);
 };
 
-if (x+y<=4 || !true){
+if (x+y>4 || !true){
   x=10;
   x=x+1;
   g=x-2;
@@ -15,14 +19,17 @@ if (x+y<=4 || !true){
 } else {
   print(z(4,7));
   print("\n");
-  print("\""+"heyyy"+" yooo "+x+"\"\n");
 }
 
 lol = ()->{
+  *boo = -100;
   print("lolol\n");
   return true;
 };
 
 yo=lol();
+
+print("boo "+*boo+"\n");
+print("\""+"heyyy"+" yooo "+x+"\"\n");
 
 print(yo+"\n");
