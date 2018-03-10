@@ -44,6 +44,8 @@ using namespace std;
   RCURL       "}"
   LPAREN      "("
   RPAREN      ")"
+  LBRACKET    "["
+  RBRACKET    "]"
   LARROW      "<-"
   RARROW      "->"
   SEMI        ";"
@@ -51,6 +53,7 @@ using namespace std;
   EXCL        "!"
   AMPER       "&"
   COMMA       ","
+  DOT         "."
 
   PLUS    "+"
   MINUS   "-"
@@ -69,8 +72,12 @@ using namespace std;
   IF
   ELSE
   WHILE
-  BREAK   "break"
+  BREAK     "break"
   CONTINUE  "continue"
+  GET       "get"
+  REMOVE    "remove"
+  INSERT    "insert"
+  LENGTH    "length"
 ;
 
 %token <std::string> STRING "string"
@@ -81,6 +88,7 @@ using namespace std;
 %type  < shared_ptr<Stm> > Stm
 %type  < shared_ptr<Stms> > Stms
 
+%type  < shared_ptr<SList> > ListStm
 %type  < shared_ptr<SAssign> > AssignStm
 %type  < shared_ptr<SPrint> > PrintStm
 %type  < std::vector<shared_ptr<Exp> > > PrintContent
@@ -95,6 +103,8 @@ using namespace std;
 %type  < shared_ptr<SReturn> >  RetStm
 
 %type  < shared_ptr<Exp> > Exp
+%type  < shared_ptr<EList> > ListExp
+%type  < shared_ptr<EListOp> > ListOpExp
 %type  < shared_ptr<EApp> > AppExp
 %type  < shared_ptr<EVar> > VarExp
 %type  < shared_ptr<EFunc> > FuncExp
@@ -134,12 +144,17 @@ Stms:
 Stm:
      IfStm              {$$=$1;}
 |    WhileStm           {$$=$1;}
+|    ListStm            {$$=$1;}
 |    BreakStm           {$$=$1;}
 |    ContinueStm        {$$=$1;}
 |    AssignStm          {$$=$1;}
 |    PrintStm           {$$=$1;}
 |    FuncStm            {$$=$1;}
 |    RetStm             {$$=$1;}
+;
+
+ListStm:
+     ListOpExp ";"        {$$=make_shared<SList>($1);}
 ;
 
 AssignStm:
@@ -198,6 +213,8 @@ RetStm:
 Exp:
      "void"             { $$ = make_shared<EVoid>(); }
 |    NumExp             { $$ = $1; }
+|    ListExp            { $$ = $1; }
+|    ListOpExp          { $$ = $1; }
 |    BoExp              { $$ = $1; }
 |    VarExp             { $$ = $1; }
 |    AppExp             { $$ = $1; }
@@ -206,20 +223,37 @@ Exp:
 |    "(" Exp ")"        { $$ = $2; }
 ;
 
+Arguments:
+    Argument                         {std::vector<shared_ptr<Exp> > args; args.push_back($1); $$=args;}
+|   Arguments "," Argument           {$1.push_back($3); $$=$1;}
+;
+
+Argument:
+    Exp                         { $$ = $1; }
+;
+
+ListExp:
+     "[" "]"                          {$$ = make_shared<EList>();}
+|    "[" Arguments "]"                {$$ = make_shared<EList>($2);}
+;
+
+ListOpExp:
+     "identifier" "." "get" "(" Exp ")"            {$$=make_shared<EListOp>(Get,$1,$5);}
+|    "identifier" "." "remove" "(" Exp ")"        {$$=make_shared<EListOp>(Remove,$1,$5);}
+|    "identifier" "." "insert" "(" Exp "," Exp ")"   {$$=make_shared<EListOp>(Insert,$1,$5,$7);}
+|    "identifier" "." "length" "("")"              {$$=make_shared<EListOp>(Length,$1);}
+;
+
 FuncExp :
       "(" ")" "->" "{" Stms "}"                 {$$ = make_shared<EFunc>($5);}
 |     "(" params ")" "->" "{" Stms "}"          {$$ = make_shared<EFunc>($2, $6);}
 ;
 
 params :
-     "identifier" "," params       {$3.push_back($1); $$=$3;}
+     params "," "identifier"       {$1.push_back($3); $$=$1;}
 |    "identifier"                  {std::vector<std::string> tmp;
                                       tmp.push_back($1);
                                       $$=tmp;}
-|    "*""identifier" "," params      {$4.push_back("*"+$2); $$=$4;}
-|    "*""identifier"               {std::vector<std::string> tmp;
-                                 tmp.push_back("*"+$2);
-                                 $$=tmp;}
 ;
 
 AppExp :
@@ -227,15 +261,6 @@ AppExp :
 |     FuncExp "(" ")"                       {$$ = make_shared<EApp>($1);}
 |     VarExp "(" Arguments ")"              {$$ = make_shared<EApp>($3,$1);}
 |     FuncExp "(" Arguments ")"             {$$ = make_shared<EApp>($3,$1);}
-;
-
-Arguments:
-    Argument                         {std::vector<shared_ptr<Exp> > args; args.push_back($1); $$=args;}
-|   Argument "," Arguments           {$3.push_back($1); $$=$3;}
-;
-
-Argument:
-    Exp                         { $$ = $1; }
 ;
 
 VarExp:

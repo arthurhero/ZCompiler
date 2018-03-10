@@ -6,8 +6,9 @@
 
 using namespace std;
 
-enum Type {Int, Bool, Func, String, Void, Ref, Unknown};
+enum Type {Int, Bool, Func, String, Void, Ref, List, Unknown};
 enum LogOps {Equal, Less, Greater, Leq, Geq, Neq, And, Or};
+enum SListType {Get, Remove, Insert, Length};
 
 struct Ans {
     int i;
@@ -20,6 +21,7 @@ struct Ans {
 
 struct Stm;
 struct Stms;
+struct SList;
 struct SBreak;
 struct SContinue;
 struct SAssign;
@@ -32,6 +34,8 @@ struct SReturn;
 
 struct Exp;
 struct EVoid;
+struct EList;
+struct EListOp;
 struct EString;
 struct EVar;
 struct EFunc;
@@ -62,6 +66,13 @@ struct SBreak : public Stm {
 
 struct SContinue : public Stm {
   SContinue();
+  Ans exec();
+  string gettype();
+};
+
+struct SList : public Stm {
+  shared_ptr<EListOp> list_exp;
+  SList(shared_ptr<EListOp> _list_exp);
   Ans exec();
   string gettype();
 };
@@ -173,6 +184,32 @@ struct EFunc : public Exp {
     Ans eval();
     string gettype();
     string tostring();
+};
+
+struct EList : public Exp {
+    std::vector<shared_ptr<Exp> > elements;
+    EList();
+    EList(std::vector<shared_ptr<Exp> > _elements);
+    Ans eval();
+    string gettype();
+    string tostring();
+};
+
+struct EListOp : public Exp {
+  string name;
+  shared_ptr<Exp> index_exp;
+  shared_ptr<Exp> insert_exp;
+  SListType type;
+  shared_ptr<EList> list;
+  shared_ptr<Exp> insert;
+  int index;
+  EListOp(SListType _type, string _name);
+  EListOp(SListType _type, string _name, shared_ptr<Exp> _index_exp);
+  EListOp(SListType _type, string _name, shared_ptr<Exp> _index_exp,
+    shared_ptr<Exp> _insert_exp);
+  Ans eval();
+  string gettype();
+  string tostring();
 };
 
 struct EApp : public Exp {

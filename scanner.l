@@ -40,19 +40,26 @@ blank [ \t]
 
 "("         { return yy::parser::make_LPAREN(); }
 ")"         { return yy::parser::make_RPAREN(); }
+"["         { return yy::parser::make_LBRACKET(); }
+"]"         { return yy::parser::make_RBRACKET(); }
 
 "if"        { return yy::parser::make_IF(); }
 "else"      { return yy::parser::make_ELSE(); }
 "while"      { return yy::parser::make_WHILE(); }
 "break"      { return yy::parser::make_BREAK(); }
 "continue"      { return yy::parser::make_CONTINUE(); }
+"get"         { return yy::parser::make_GET(); }
+"remove"     { return yy::parser::make_REMOVE(); }
+"insert"     { return yy::parser::make_INSERT(); }
+"length"     { return yy::parser::make_LENGTH(); }
 
 "->"      { return yy::parser::make_RARROW(); }
 "<-"      { return yy::parser::make_LARROW(); }
 ","       { return yy::parser::make_COMMA();  }
+"."       { return yy::parser::make_DOT();  }
 
-"<"     { return yy::parser::make_LESS(); }
-">"     { return yy::parser::make_GREATER(); }
+"<"      { return yy::parser::make_LESS(); }
+">"      { return yy::parser::make_GREATER(); }
 "<="     { return yy::parser::make_LEQ(); }
 ">="     { return yy::parser::make_GEQ(); }
 "=="     { return yy::parser::make_LEQUAL(); }

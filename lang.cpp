@@ -55,6 +55,8 @@ string ans_to_string(Ans ans) {
     return "";
   } else if (ans.t == Func) {
     return "#function";
+  } else if (ans.t == List) {
+    return "#list";
   } else {
     return "Not printable";
   }
@@ -115,6 +117,20 @@ Ans SContinue::exec() {
 }
 
 string SContinue::gettype() {return "SContinue";}
+
+/***** SList *******************************************************************/
+
+SList::SList(shared_ptr<EListOp> _list_exp):list_exp(_list_exp) {}
+
+Ans SList::exec() {
+  forward_context(context_list_p,&(list_exp->context_list));
+  Ans answer = list_exp->eval();
+  return answer;
+}
+
+string SList::gettype() {
+  return "SList";
+}
 
 /***** SAssign *******************************************************************/
 
@@ -457,6 +473,104 @@ string EFunc::tostring(){
   return ans_to_string(answer);
 }
 
+/***** EList *******************************************************************/
+
+EList::EList() {
+  elements = std::vector<shared_ptr<Exp> >();
+}
+
+EList::EList(std::vector<shared_ptr<Exp> > _elements):elements(_elements){}
+
+Ans EList::eval() {
+  Ans answer;
+  answer.t = List;
+  return answer;
+}
+
+string EList::gettype(){return "EList";}
+
+string EList::tostring(){
+  Ans answer = this->eval();
+  return ans_to_string(answer);
+}
+
+/***** SList *******************************************************************/
+
+EListOp::EListOp(SListType _type, string _name): type(_type),name(_name) {}
+
+EListOp::EListOp(SListType _type, string _name, shared_ptr<Exp> _index_exp):
+  type(_type),name(_name),index_exp(_index_exp) {}
+
+EListOp::EListOp(SListType _type, string _name, shared_ptr<Exp> _index_exp,
+  shared_ptr<Exp> _insert_exp): type(_type),name(_name),index_exp(_index_exp),
+  insert_exp(_insert_exp) {}
+
+Ans EListOp::eval() {
+  Ans answer;
+
+  std::map<std::string, shared_ptr<Exp> > *context_p = &(context_list[0]);
+  Ans l;
+
+  if (context_p->find(name) == context_p->end()){
+   std::cerr << "Error: Undeclared Variable in SList! " << name << std::endl;
+   exit(1);
+  } else {
+   forward_context(&context_list,&((*context_p)[name]->context_list));
+   l = ((*context_p)[name])->eval();
+   if (l.t != List) {
+     std::cerr << "Error: Variable not of type List: " << name << std::endl;
+     exit(1);
+   }
+   list = std::dynamic_pointer_cast<EList>((*context_p)[name]);
+  }
+
+  if (type == Length) {
+    answer.i = (list->elements).size();
+    answer.t = Int;
+  } else {
+    forward_context(&context_list,&(index_exp->context_list));
+    Ans i = index_exp->eval();
+    if (i.t != Int) {
+      std::cerr << "Error: Variable not of type Int!" << std::endl;
+      exit(1);
+    }
+    index = i.i;
+    if (type == Get) {
+      forward_context(&context_list,&((list->elements).at(index)->context_list));
+      answer = (list->elements).at(index)->eval();
+    } else if (type == Remove) {
+      (list->elements).erase((list->elements).begin()+index);
+      answer.t = Void;
+    } else if (type == Insert) {
+      forward_context(&context_list,&(insert_exp->context_list));
+      Ans tmp = insert_exp->eval();
+      if (tmp.t == Int) {
+        insert = make_shared<ENumb>(tmp.i);
+      } else if (tmp.t == Bool) {
+        insert = make_shared<EBool>(tmp.b);
+      } else if (tmp.t == String) {
+        insert = make_shared<EString>(tmp.s);
+      } else {
+        insert = insert_exp;
+      }
+      (list->elements).insert((list->elements).begin()+index,insert);
+       answer.t = Void;
+     }
+  }
+
+  context_list.erase(context_list.begin());
+  return answer;
+}
+
+string EListOp::gettype() {
+  return "EListOp";
+}
+
+string EListOp::tostring(){
+  Ans answer = this->eval();
+  return ans_to_string(answer);
+}
+
 /***** EApp *******************************************************************/
 
 EApp::EApp(shared_ptr<EFunc> _function) : function(_function){
@@ -473,7 +587,6 @@ EApp::EApp(std::vector<shared_ptr<Exp> > _args, shared_ptr<EFunc> _function)
      exit(1);
    }
  }
-
 
 EApp::EApp(shared_ptr<EVar> _fname) : fname(_fname){
  name = fname->name;
@@ -500,7 +613,6 @@ Ans EApp::eval() {
      std::cerr << "Error: Undeclared Variable in EApp! " << name << std::endl;
      exit(1);
    } else {
-     //forward_context(&context,&((context[name])->context));
      forward_context(&context_list,&((*context_p)[name]->context_list));
      func = ((*context_p)[name])->eval();
      if (func.t != Func) {
@@ -525,6 +637,20 @@ Ans EApp::eval() {
         (*context_p)[function->params[i]] = make_shared<ENumb>(tmp.i);
       } else if (tmp.t == Bool) {
         (*context_p)[function->params[i]] = make_shared<EBool>(tmp.b);
+      } else if (tmp.t == String) {
+        (*context_p)[function->params[i]] = make_shared<EString>(tmp.s);
+      } else if (tmp.t == List) {
+        if (args[i]->gettype().compare("EVar")==0) {
+          std::string lname = std::dynamic_pointer_cast<EVar>(args[i])->name;
+          if (context_p->find(lname) == context_p->end()){
+            std::cerr << "Error: Undeclared List in EApp! " << lname << std::endl;
+            exit(1);
+          } else {
+            (*context_p)[function->params[i]] = std::dynamic_pointer_cast<EList>((*context_p)[lname]);
+          }
+        } else {
+          (*context_p)[function->params[i]] = std::dynamic_pointer_cast<EList>(args[i]);
+        }
       } else {
         (*context_p)[function->params[i]] = args[i];
       }

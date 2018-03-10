@@ -50,10 +50,38 @@ while(con>0){
 }
 
 ref1 = (a,p)->{
-  a=10;
-  *p=10;
+  *a=10;
+  p=10;
 };
 
-ref1(x,boo);
+ref1(boo,x);
 
 print("hey "+x+*boo+"\n");
+
+print_list = (list)->{
+  counter = list.length()-1;
+  while (counter>=0) {
+    print("printing... "+list.get(counter)+"\n");
+    counter=counter-1;
+  }
+};
+
+print_list([1,2,3,4]);
+
+l = [1,2,3,4];
+print(l.get(2)+"\n");
+l.remove(0);
+l.insert(0,5);
+print(l.get(0)+"\n");
+
+testlist = (ll)->{
+  ll.insert(0,4);
+};
+
+testlist(l);
+print(l.get(0)+"\n");
+print(l.length()+"\n");
+print(l.get(3)+"\n");
+print(l.length()+"\n");
+
+print_list(l);
