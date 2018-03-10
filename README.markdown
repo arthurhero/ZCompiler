@@ -56,3 +56,10 @@ New features: Reference and while loop
 Changes to existing features: None
 
 known bugs: None
+
+### [assignment-07]
+New features: List 
+
+Changes to existing features: Fixed pass-by-reference feature in function call
+
+known bugs: None
